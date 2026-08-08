@@ -73,6 +73,14 @@ I'm out of my depth here, and it remains unclear to me.
 
 Thus I decided to raise QA to issues.
 
+## prepare
+
+Download asset to avoid download everytime.
+
+```console
+$ ./reproduce.sh prepare
+```
+
 ## reproduce
 
 Given `X` is `non fixed output derivation`.
