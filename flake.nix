@@ -11,7 +11,7 @@
 
       # use local tarball for faster reproduce
       nixpkgs = builtins.fetchTarball {
-        url = "./generated/nixpkgs.tgz";
+        url = "./download/nixpkgs.tgz";
         sha256 = "208b6b75becfba4d3946a3815996050b95fa5a5d6c26609f879316547c3988c3";
       };
 

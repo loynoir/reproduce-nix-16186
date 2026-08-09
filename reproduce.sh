@@ -4,19 +4,22 @@
 
 set -euo pipefail
 
-SUBSTITUTERS="${SUBSTITUTERS-}"
-
-# strip docker log prefix `(#\d+ |)\d+(\.\d+ |)`
-readonly STRIP_DOCKER_LOG_PREFIX='s@^(#[0-9]+ |)[0-9]+(\.[0-9]+ |)@@g'
-
-assert_logfile() {
+assert_logfile_ok() {
   local logfile="${1:?}"
 
-  if ! sed -re "${STRIP_DOCKER_LOG_PREFIX:?}" "${logfile:?}" | grep -C 1 -F 'OK: network=offline'; then
-    # pretty log, after last line contains X, before first line contains Y
+  # strip docker log prefix `(#\d+ |)\d+(\.\d+ |)`
+  declare -r STRIP_DOCKER_LOG_PREFIX='s@^(#[0-9]+ |)[0-9]+(\.[0-9]+ |)@@g'
+
+  if ! grep -C 1 -F 'OK: network=offline' "${logfile:?}" | sed -re "${STRIP_DOCKER_LOG_PREFIX:?}"; then
+    # pretty log
+    # remove docker log prefix
+    # remove anti pattern
+    # print lines after last line contains pattern X
+    # print lines before first line contains pattern Y
+    # make hash path pretty
     sed -re "${STRIP_DOCKER_LOG_PREFIX:?}" "${logfile:?}" \
       | grep -v 'Error: building at STEP' \
-      | awk '/copying|downloading|building/{buf="";next}{buf=buf $0 ORS}END{printf "%s",buf}' \
+      | awk '/copying|downloading|building|\[[0-9]+\/[0-9]+\] RUN/{buf="";next}{buf=buf $0 ORS}END{printf "%s",buf}' \
       | awk '/---/{exit} 1' \
       | sed -r 's@/nix/store/[a-zA-Z0-9]{32}@/nix/store/XXX@g'
 
@@ -27,7 +30,9 @@ assert_logfile() {
 
 normal_run_flake() {
   local logfile
-  logfile=$(mktemp --dry-run /tmp/reproduce.XXXXXXXXXX)
+  logfile=$(mktemp --dry-run ./log/reproduce.XXXXXXXXXX)
+
+  mkdir -p ./log
 
   {
     # deal with prevent caching err exit
@@ -44,12 +49,14 @@ normal_run_flake() {
       .
   } >"${logfile:?}" 2>&1
 
-  assert_logfile "${logfile}"
+  assert_logfile_ok "${logfile}"
 }
 
 within_container_run_flake() {
   local logfile
-  logfile=$(mktemp --dry-run /tmp/reproduce.XXXXXXXXXX)
+  logfile=$(mktemp --dry-run ./log/reproduce.XXXXXXXXXX)
+
+  mkdir -p ./log
 
   {
     # deal with prevent caching err exit
@@ -61,12 +68,14 @@ within_container_run_flake() {
       .
   } >"${logfile:?}" 2>&1
 
-  assert_logfile "${logfile}"
+  assert_logfile_ok "${logfile}"
 }
 
 within_container_run_flake_without_fallback() {
   local logfile
-  logfile=$(mktemp --dry-run /tmp/reproduce.XXXXXXXXXX)
+  logfile=$(mktemp --dry-run ./log/reproduce.XXXXXXXXXX)
+
+  mkdir -p ./log
 
   {
     # deal with prevent caching err exit
@@ -78,12 +87,14 @@ within_container_run_flake_without_fallback() {
       .
   } >"${logfile:?}" 2>&1
 
-  assert_logfile "${logfile}"
+  assert_logfile_ok "${logfile}"
 }
 
 within_container_unshare_run_flake_without_fallback() {
   local logfile
-  logfile=$(mktemp --dry-run /tmp/reproduce.XXXXXXXXXX)
+  logfile=$(mktemp --dry-run ./log/reproduce.XXXXXXXXXX)
+
+  mkdir -p ./log
 
   {
     # deal with prevent caching err exit
@@ -95,14 +106,24 @@ within_container_unshare_run_flake_without_fallback() {
       .
   } >"${logfile:?}" 2>&1
 
-  assert_logfile "${logfile}"
+  assert_logfile_ok "${logfile}"
+}
+
+{
+  if [ -e ./.env/profile.sh ]; then
+    # custom SUBSTITUTERS to use mirrors for faster reproduce
+    source ./.env/profile.sh
+  fi
+
+  SUBSTITUTERS="${SUBSTITUTERS-}"
+
+  mkdir -p ./download ./log
+  if [ ! -e ./download/nixpkgs.tgz ]; then
+    curl -fsSLo ./download/nixpkgs.tgz https://github.com/NixOS/nixpkgs/archive/b7c2ada94fe99c15b0dbcf4d11fd7850b957a436.tar.gz
+  fi
 }
 
 case "${1-default}" in
-  prepare)
-    mkdir -p ./generated
-    curl -fsSLo ./generated/nixpkgs.tgz https://github.com/NixOS/nixpkgs/archive/b7c2ada94fe99c15b0dbcf4d11fd7850b957a436.tar.gz
-    ;;
   normal_run_flake)
     normal_run_flake
     ;;
@@ -125,6 +146,9 @@ case "${1-default}" in
     engine=podman within_container_unshare_run_flake_without_fallback
     ;;
   default)
+    exit 42
+    ;;
+  *)
     exit 42
     ;;
 esac

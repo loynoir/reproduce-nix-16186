@@ -8,7 +8,7 @@ RUN \
 RUN ls /proc/self/ns/cgroup && echo namespace OK
 
 COPY ./flake.nix /tmp/reproduce/
-COPY ./generated/ /tmp/reproduce/generated/
+COPY ./download/ /tmp/reproduce/download/
 
 ARG LAUNCHER=
 ARG SUBSTITUTERS=

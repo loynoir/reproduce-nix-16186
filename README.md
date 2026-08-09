@@ -73,14 +73,6 @@ I'm out of my depth here, and it remains unclear to me.
 
 Thus I decided to raise QA to issues.
 
-## prepare
-
-Download asset to avoid download everytime.
-
-```console
-$ ./reproduce.sh prepare
-```
-
 ## reproduce
 
 Given `X` is `non fixed output derivation`.
@@ -144,9 +136,8 @@ https://github.com/podman-container-tools/podman/discussions/29400#discussioncom
 
 ```console
 $ ./reproduce.sh within_docker_unshare_run_flake_without_fallback
-...
 unshare: unshare failed: Operation not permitted
-...
+test failed
 ```
 
 ```console
@@ -154,3 +145,9 @@ $ ./reproduce.sh within_podman_unshare_run_flake_without_fallback
 error: this system does not support the kernel namespaces that are required for sandboxing; use '--no-sandbox' to disable sandboxing
 test failed
 ```
+
+## project layout
+
+- `./.env/profile.sh` is optional, able to set `SUBSTITUTERS`, in order to use custom nix mirror, for faster reproduce
+- `./download` is auto generated, prefetch download, to avoid fetch github archive everytime
+- `./log` is auto generated, store original log without pretty for low level debug
